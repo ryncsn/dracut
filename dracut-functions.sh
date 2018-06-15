@@ -696,3 +696,158 @@ btrfs_devs() {
         printf -- "%s\n" "$_dev"
         done
 }
+
+squash_init_root=squash-init
+squash_dir=${initdir}/dev/.squashed-initramfs
+squash_init_dir=${initdir}/${squash_init_root}
+
+build_squash() {
+    local squash_img=${initdir}/squash.img
+    mksquashfs ${squash_dir} ${squash_img} -comp xz -b 64K -Xdict-size 100% &> /dev/null
+    [[ $? != 0 ]] && return
+    rm -r ${squash_dir}/*
+}
+
+resolve_binary() {
+    local binary=$1
+    local abs_binary=$1
+
+    if [[ $binary == */* ]]; then
+        abs_binary=$binary
+    else
+        abs_binary=$(\
+            PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/lib/systemd; \
+            which $binary 2>/dev/null)
+    fi
+
+    local libs=$(set -euf; ldd $abs_binary 2>/dev/null | awk '{print $1}')
+    [[ $? != 0 ]] && return
+    for lib in $libs; do
+        [[ $lib == /* ]] && echo $lib | rev | cut -d '/' -f 1 | rev && continue
+        echo $lib
+    done
+}
+
+move_to_squash_init() {
+    local src=$1
+
+    while [[ -L ${src} ]] ; do
+        sym_target=$(readlink ${src})
+        [[ $sym_target == /${squash_init_root}* ]] && return
+
+        _init_path=${squash_init_dir}${src#${squash_dir}}
+        if [[ $sym_target == "/*" ]] ; then
+            _new_sym_target=${squash_init_dir}${sym_target}
+            sym_target=${initdir}${sym_target}
+        else
+            _new_sym_target=${sym_target}
+            sym_target=$(dirname $src)/${sym_target}
+        fi
+        mkdir -p $(dirname $_init_path)
+        ln -s -f ${_new_sym_target#${initdir}} ${_init_path}
+        ln -s -f ${_init_path#${initdir}} ${src}
+        src=${sym_target}
+    done
+
+    [[ $src == /${squash_init_root}* ]] && return
+
+    _init_path=${squash_init_dir}${src#${squash_dir}}
+    mkdir -p $(dirname ${_init_path})
+    mv ${src} ${_init_path}
+    ln -s ${_init_path#${initdir}} ${src}
+}
+
+init_squash() {
+    local required_binaries=( "sh" "mount" "modprobe" "ln" "echo" "mkdir" )
+    local required_libs=( )
+
+    for binary in "${required_binaries[@]}"; do
+        for lib in $(resolve_binary $binary); do
+            [[ " ${required_libs[@]} " == *" $lib "* ]] && continue
+            required_libs+=( "$lib" )
+        done
+    done
+
+    mkdir -m 0755 -p ${initdir}/squash
+    mkdir -m 0755 -p ${squash_dir}
+    mkdir -m 0755 -p ${squash_init_dir}
+
+    for folder in \
+        usr \
+        etc \
+        ${NULL} \
+        ;
+    do
+        mv ${initdir}/$folder ${squash_dir}/
+        mkdir ${squash_init_dir}/$folder
+        ln -s /${squash_init_root}/$folder ${initdir}/$folder
+    done
+
+    # TODO: make /usr completely ro
+    for rw_path in \
+        etc/udev/ \
+        etc/profile \
+        etc/resolv.conf \
+        ${tmpfilesdir#/}/ \
+        ${NULL} \
+        ;
+    do
+        local top_root=$(echo $rw_path | cut -d '/' -f 1)
+        [[ ! -d ${squash_dir}/$top_root ]] && continue  # The root path file belongs to not squashed
+
+        if [[ ! -e ${squash_dir}/${rw_path} ]]; then
+            if [[ ${rw_path} == */ ]]; then
+                mkdir ${squash_dir}/${rw_path%/}
+            else
+                touch ${squash_dir}/${rw_path}
+            fi
+        fi
+        if [[ ${rw_path} == */ ]]; then
+            rw_path=${rw_path%/}
+        fi
+        mkdir -p $(dirname ${squash_init_dir}/${rw_path})
+        mv ${squash_dir}/${rw_path} ${squash_init_dir}/${rw_path}
+        ln -s /${squash_init_root}/${rw_path} ${squash_dir}/${rw_path}
+    done
+
+    for required_executable in \
+        ${required_binaries[@]} \
+        ${required_libs[@]} \
+	    ${NULL};
+    do
+        for squashed_file in $(find \
+            ${squash_dir}/usr/bin \
+            ${squash_dir}/usr/sbin \
+            ${squash_dir}/usr/lib \
+            ${squash_dir}/usr/lib64 \
+            -not -type d -name ${required_executable}) ;
+        do
+            move_to_squash_init $squashed_file
+        done
+    done
+
+    for required_module in \
+        loop \
+        squashfs \
+	    ${NULL};
+    do
+        for squashed_file in $(find \
+            ${squash_dir}/usr/lib/modules/*/kernel \
+            -not -type d -name ${required_module}.ko*) ;
+        do
+            move_to_squash_init $squashed_file
+        done
+    done
+
+    for module_spec in ${squash_dir}/usr/lib/modules/*/modules.*;
+    do
+        move_to_squash_init $module_spec
+    done
+
+    mv ${initdir}/init ${initdir}/init.orig
+
+    chmod 0755 ${initdir}/init.squash
+    ln -nsf init.squash ${initdir}/init
+
+    build_squash
+}

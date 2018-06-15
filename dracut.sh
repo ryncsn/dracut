@@ -1716,6 +1716,22 @@ fi
 
 dinfo "*** Creating image file '$outfile' ***"
 
+if dracut_module_included "squash"; then
+    if ! check_kernel_config CONFIG_SQUASHFS; then
+        dfatal "CONFIG_SQUASHFS have to be enabled for squash image to work"
+        exit 1
+    fi
+    if ! check_kernel_config CONFIG_DEVTMPFS; then
+        dfatal "CONFIG_DEVTMPFS have to be enabled for squash image to work"
+        exit 1
+    fi
+    init_squash
+    if [[ $? != 0 ]]; then
+        dfatal "failed making squash image"
+        exit 1
+    fi
+fi
+
 if [[ $uefi = yes ]]; then
     readonly uefi_outdir="$DRACUT_TMPDIR/uefi"
     mkdir "$uefi_outdir"
