@@ -165,7 +165,7 @@ if ! [[ -x $DRACUT_INSTALL ]]; then
     exit 10
 fi
 
-if [[ $hostonly == "-h" ]]; then
+if [[ $hostonly == "yes" ]]; then
     if ! [[ $DRACUT_KERNEL_MODALIASES ]] || ! [[ -f "$DRACUT_KERNEL_MODALIASES" ]]; then
         export DRACUT_KERNEL_MODALIASES="${DRACUT_TMPDIR}/modaliases"
         $DRACUT_INSTALL ${srcmods:+--kerneldir "$srcmods"} --modalias > "$DRACUT_KERNEL_MODALIASES"
@@ -564,13 +564,14 @@ module_check() {
     local _ret
     local _forced=0
     local _hostonly=$hostonly
+    local _hostonly_strict=$hostonly_strict
     [ $# -eq 2 ] && _forced=$2
     [[ -d $_moddir ]] || return 1
     if [[ ! -f $_moddir/module-setup.sh ]]; then
         # if we do not have a check script, we are unconditionally included
         [[ -x $_moddir/check ]] || return 0
         [ $_forced -ne 0 ] && unset hostonly
-        $_moddir/check $hostonly
+        $_moddir/check $hostonly $hostonly_strict
         _ret=$?
     else
         unset check depends cmdline install installkernel
@@ -578,11 +579,12 @@ module_check() {
         . $_moddir/module-setup.sh
         is_func check || return 0
         [ $_forced -ne 0 ] && unset hostonly
-        moddir=$_moddir check $hostonly
+        moddir=$_moddir check $hostonly $hostonly_strict
         _ret=$?
         unset check depends cmdline install installkernel
     fi
     hostonly=$_hostonly
+    hostonly_strict=$_hostonly_strict
     return $_ret
 }
 
@@ -964,6 +966,9 @@ instmods() {
     local _optional="-o"
     local _silent
     local _ret
+    local _hostonly=$hostonly
+
+    [[ $hostonly_strict = yes ]] && _hostonly="-h"
 
     [[ $no_kernel = yes ]] && return
 
@@ -984,9 +989,9 @@ instmods() {
     $DRACUT_INSTALL \
         ${initdir:+-D "$initdir"} \
         ${loginstall:+-L "$loginstall"} \
-        ${hostonly:+-H} \
         ${omit_drivers:+-N "$omit_drivers"} \
         ${srcmods:+--kerneldir "$srcmods"} \
+        ${_hostonly:+-H} \
         ${_optional:+-o} \
         ${_silent:+--silent} \
         -m "$@"
@@ -997,9 +1002,9 @@ instmods() {
             $DRACUT_INSTALL \
                 ${initdir:+-D "$initdir"} \
                 ${loginstall:+-L "$loginstall"} \
-                ${hostonly:+-H} \
                 ${omit_drivers:+-N "$omit_drivers"} \
                 ${srcmods:+--kerneldir "$srcmods"} \
+                ${_hostonly:+-H} \
                 ${_optional:+-o} \
                 ${_silent:+--silent} \
                 -m "$@"

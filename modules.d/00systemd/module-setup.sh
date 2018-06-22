@@ -18,7 +18,7 @@ depends() {
 }
 
 installkernel() {
-    hostonly='' instmods autofs4 ipv6 algif_hash hmac sha256
+    hostonly='' hostonly_strict='' instmods autofs4 ipv6 algif_hash hmac sha256
     instmods -s efivarfs
 }
 
@@ -160,7 +160,7 @@ install() {
     }
 
     _mods=$(modules_load_get /usr/lib/modules-load.d)
-    [[ $_mods ]] && hostonly='' instmods $_mods
+    [[ $_mods ]] && hostonly='' hostonly_strict='' instmods $_mods
 
     if [[ $hostonly ]]; then
         inst_multiple -H -o \
@@ -180,7 +180,7 @@ install() {
             ${NULL}
 
         _mods=$(modules_load_get /etc/modules-load.d)
-        [[ $_mods ]] && hostonly='' instmods $_mods
+        [[ $_mods ]] && hostonly='' hostonly_strict='' instmods $_mods
     fi
 
     if ! [[ -e "$initdir/etc/machine-id" ]]; then

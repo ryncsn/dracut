@@ -15,7 +15,7 @@ depends() {
 }
 
 installkernel() {
-    hostonly="" instmods dm-snapshot
+    hostonly="" hostonly_strict="" instmods dm-snapshot
 }
 
 # called by dracut

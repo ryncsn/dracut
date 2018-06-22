@@ -9,7 +9,7 @@ depends() {
 }
 
 installkernel() {
-    hostonly="" instmods squashfs loop
+    hostonly="" hostonly_strict="" instmods squashfs loop
 }
 
 install() {

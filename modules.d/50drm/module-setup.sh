@@ -33,9 +33,9 @@ installkernel() {
     if [[ $hostonly ]]; then
         for i in /sys/bus/{pci/devices,soc/devices/soc?}/*/modalias; do
             [[ -e $i ]] || continue
-            if hostonly="" dracut_instmods --silent -s "drm_crtc_init" -S "iw_handler_get_spy" $(<$i); then
+            if hostonly="" hostonly_strict="" dracut_instmods --silent -s "drm_crtc_init" -S "iw_handler_get_spy" $(<$i); then
                 if strstr "$(modinfo -F filename $(<$i) 2>/dev/null)" radeon.ko; then
-                    hostonly='' instmods amdkfd
+                    hostonly='' hostonly_strict='' instmods amdkfd
                 fi
             fi
         done

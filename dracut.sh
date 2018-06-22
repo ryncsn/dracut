@@ -146,6 +146,12 @@ Creates initial ramdisk images for preloading modules
                          Useful when running dracut from a git checkout.
   -H, --hostonly        Host-Only mode: Install only what is needed for
                         booting the local host instead of a generic host.
+  --hostonly-strict     Enable strict host-only mode.
+                        With "strict" mode enabled, every module or driver not
+                        needed to boot the current machine in it's current
+                        state is strippped, and can save more space. But a minor
+                        change of hardware or enviroment will break the initramfs.
+                        DO NOT use this unless you know what you are doing.
   -N, --no-hostonly     Disables Host-Only mode
   --hostonly-cmdline    Store kernel command line arguments needed
                         in the initramfs
@@ -350,6 +356,7 @@ rearrange_params()
         --long local \
         --long hostonly \
         --long host-only \
+        --long hostonly-strict \
         --long no-hostonly \
         --long no-host-only \
         --long hostonly-cmdline \
@@ -538,6 +545,9 @@ while :; do
                        ;;
         -H|--hostonly|--host-only)
                        hostonly_l="yes" ;;
+        --hostonly-strict)
+                       hostonly_l="yes" ;
+                       hostonly_strict_l="yes" ;;
         -N|--no-hostonly|--no-host-only)
                        hostonly_l="no" ;;
         --hostonly-cmdline)
@@ -725,6 +735,7 @@ stdloglvl=$((stdloglvl + verbosity_mod_l))
 [[ $prefix_l ]] && prefix=$prefix_l
 [[ $prefix = "/" ]] && unset prefix
 [[ $hostonly_l ]] && hostonly=$hostonly_l
+[[ $hostonly_strict_l ]] && hostonly_strict=$hostonly_strict_l
 [[ $hostonly_cmdline_l ]] && hostonly_cmdline=$hostonly_cmdline_l
 [[ "$hostonly" == "yes" ]] && ! [[ $hostonly_cmdline ]] && hostonly_cmdline="yes"
 [[ $i18n_install_all_l ]] && i18n_install_all=$i18n_install_all_l
@@ -847,8 +858,8 @@ case $compress in
        ;;
 esac
 
-[[ $hostonly = yes ]] && hostonly="-h"
-[[ $hostonly != "-h" ]] && unset hostonly
+[[ $hostonly != "yes" ]] && unset hostonly
+[[ $hostonly_strict != "yes" ]] && unset hostonly_strict
 
 [[ $reproducible == yes ]] && DRACUT_REPRODUCIBLE=1
 
@@ -1463,21 +1474,21 @@ dinfo "*** Including modules done ***"
 if [[ $no_kernel != yes ]]; then
 
     if [[ $drivers ]]; then
-        hostonly='' instmods $drivers
+        hostonly='' hostonly_strict='' instmods $drivers
     fi
 
     if [[ -n "${add_drivers// }" ]]; then
-        hostonly='' instmods -c $add_drivers
+        hostonly='' hostonly_strict='' instmods -c $add_drivers
     fi
     if [[ $force_drivers ]]; then
-        hostonly='' instmods -c $force_drivers
+        hostonly='' hostonly_strict='' instmods -c $force_drivers
         rm -f $initdir/etc/cmdline.d/20-force_driver.conf
         for mod in $force_drivers; do
             echo "rd.driver.pre=$mod" >>$initdir/etc/cmdline.d/20-force_drivers.conf
         done
     fi
     if [[ $filesystems ]]; then
-        hostonly='' instmods -c $filesystems
+        hostonly='' hostonly_strict='' instmods -c $filesystems
     fi
 
     dinfo "*** Installing kernel module dependencies ***"
