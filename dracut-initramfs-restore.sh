@@ -40,4 +40,11 @@ else
     exit 1
 fi
 
+# Unsquash if using squashed initramfs
+# Mount squashfs using loop device violates SELinux policy on some distro
+if [[ -e init.squash.img ]]; then
+	# Only extrat user xattr, else may have SELinux issue
+	unsquashfs -u -f -d . init.squash.img
+fi
+
 exit 0
