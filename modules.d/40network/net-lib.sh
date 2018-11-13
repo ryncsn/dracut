@@ -485,10 +485,16 @@ ip_to_var() {
         return 0
     fi
 
-    if [ "$2" = "dhcp" -o "$2" = "on" -o "$2" = "any" -o "$2" = "dhcp6" -o "$2" = "auto6" -o "$2" = "either6" ]; then
-        # format: ip=<interface>:{dhcp|on|any|dhcp6|auto6}[:[<mtu>][:<macaddr>]]
+    # format: ip=<interface>:{dhcp|on|any|dhcp6|auto6}[:[<mtu>][:<macaddr>]]
+    autoconf=$2
+    for i in $(str_replace "$autoconf" "," " "); do
+        if ! [ "$i" = "dhcp" -o "$i" = "on" -o "$i" = "any" -o "$i" = "dhcp6" -o "$i" = "auto6" -o "$i" = "either6" -o "$i" = "dual" ]; then
+            autoconf=""
+        fi
+    done
+
+    if [ -n $autoconf ]; then
         [ -n "$1" ] && dev="$1"
-        [ -n "$2" ] && autoconf="$2"
         [ -n "$3" ] && mtu=$3
         if [ -z "$5" ]; then
             macaddr="$4"
