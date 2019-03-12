@@ -798,7 +798,6 @@ static void usage(int status)
                "  --firmwaredirs    Specify the firmware directory search path with : separation\n"
                "  --silent          Don't display error messages for kernel module install\n"
                "  --modalias        Only generate module list from /sys/devices modalias list\n"
-               "  -o --optional     If kernel module does not exist, do not fail\n"
                "  -p --mod-filter-path      Filter kernel modules by path regexp\n"
                "  -P --mod-filter-nopath    Exclude kernel modules by path regexp\n"
                "  -s --mod-filter-symbol    Filter kernel modules by symbol regexp\n"
