@@ -59,6 +59,7 @@ static bool arg_modalias = false;
 static bool arg_resolvelazy = false;
 static bool arg_resolvedeps = false;
 static bool arg_hostonly = false;
+static bool arg_dryrun = false;
 static char *destrootdir = NULL;
 static char *kerneldir = NULL;
 static size_t kerneldirlen = 0;
@@ -156,6 +157,7 @@ static char *convert_abs_rel(const char *from, const char *target)
         realpath_p = realpath(target_dir_p, NULL);
 
         if (realpath_p == NULL) {
+                // For dryrun, target path is not created, the realpath is the path to be created
                 log_warning("convert_abs_rel(): target '%s' directory has no realpath.", target);
                 return strdup(from);
         }
@@ -223,7 +225,7 @@ static char *convert_abs_rel(const char *from, const char *target)
 
 static int ln_r(const char *src, const char *dst)
 {
-        int ret;
+        int ret = 0;
         _cleanup_free_ const char *points_to = convert_abs_rel(src, dst);
 
         log_info("ln -s '%s' '%s'", points_to, dst);
@@ -602,7 +604,7 @@ static int dracut_install(const char *src, const char *dst, bool isdir, bool res
         struct stat sb, db;
         _cleanup_free_ char *fulldstpath = NULL;
         _cleanup_free_ char *fulldstdir = NULL;
-        int ret;
+        int ret = 0;
         bool src_exists = true;
         char *i = NULL;
 
@@ -686,9 +688,14 @@ static int dracut_install(const char *src, const char *dst, bool isdir, bool res
                 }
         }
 
+        if (arg_dryrun) {
+                printf("Install: %s\n", src);
+        }
+
         if (isdir && !src_exists) {
                 log_info("mkdir '%s'", fulldstpath);
-                ret = mkdir(fulldstpath, 0755);
+                if (!arg_dryrun)
+                        ret = mkdir(fulldstpath, 0755);
                 return ret;
         }
 
@@ -696,7 +703,8 @@ static int dracut_install(const char *src, const char *dst, bool isdir, bool res
 
         if (S_ISDIR(sb.st_mode)) {
                 log_info("mkdir '%s'", fulldstpath);
-                ret = mkdir(fulldstpath, sb.st_mode | S_IWUSR);
+                if (!arg_dryrun)
+                        ret = mkdir(fulldstpath, sb.st_mode | S_IWUSR);
                 return ret;
         }
 
@@ -727,7 +735,8 @@ static int dracut_install(const char *src, const char *dst, bool isdir, bool res
                                 exit(EXIT_FAILURE);
                         }
 
-                        ln_r(absdestpath, fulldstpath);
+                        if (!arg_dryrun)
+                                ln_r(absdestpath, fulldstpath);
                 }
 
                 if (arg_hmac) {
@@ -750,8 +759,15 @@ static int dracut_install(const char *src, const char *dst, bool isdir, bool res
         log_debug("dracut_install ret = %d", ret);
         log_info("cp '%s' '%s'", src, fulldstpath);
 
-        if (arg_hostonly && !arg_module)
-                mark_hostonly(dst);
+        if (arg_hostonly && !arg_module) {
+                if (arg_dryrun)
+                        printf("Mark hostonly: %s\n", src);
+                else
+                        mark_hostonly(dst);
+        }
+
+        if (arg_dryrun)
+                return 0;
 
         ret += cp(src, fulldstpath);
         if (ret == 0 && logfile_f)
@@ -792,6 +808,8 @@ static void usage(int status)
                "                     for all SOURCE files\n"
                "  -H --hostonly     Mark all SOURCE files as hostonly\n\n"
                "  -f --fips         Also install all '.SOURCE.hmac' files\n"
+               "  -n --dryrun       Don't actually install anything, just print the files to\n"
+               "                    be installed\n\n"
                "\n"
                "  --module,-m       Install kernel modules, instead of files\n"
                "  --kerneldir       Specify the kernel module directory\n"
@@ -837,6 +855,7 @@ static int parse_argv(int argc, char *argv[])
                 {"resolvelazy", no_argument, NULL, 'R'},
                 {"optional", no_argument, NULL, 'o'},
                 {"hostonly", no_argument, NULL, 'H'},
+                {"dryrun", no_argument, NULL, 'n'},
                 {"all", no_argument, NULL, 'a'},
                 {"module", no_argument, NULL, 'm'},
                 {"fips", no_argument, NULL, 'f'},
@@ -854,7 +873,7 @@ static int parse_argv(int argc, char *argv[])
                 {NULL, 0, NULL, 0}
         };
 
-        while ((c = getopt_long(argc, argv, "madfhlL:oD:HRp:P:s:S:N:", options, NULL)) != -1) {
+        while ((c = getopt_long(argc, argv, "madfhlL:oD:HnRp:P:s:S:N:", options, NULL)) != -1) {
                 switch (c) {
                 case ARG_VERSION:
                         puts(PROGRAM_VERSION_STRING);
@@ -942,6 +961,9 @@ static int parse_argv(int argc, char *argv[])
                         break;
                 case 'H':
                         arg_hostonly = true;
+                        break;
+                case 'n':
+                        arg_dryrun = true;
                         break;
                 case 'h':
                         usage(EXIT_SUCCESS);
