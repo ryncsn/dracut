@@ -1774,10 +1774,14 @@ if dracut_module_included "squash"; then
 
     # Reinstall required files for the squash image setup script.
     # We have moved them inside the squashed image, but they need to be
-    # accessible before mounting the image. Also install systemctl,
-    # it's requires for switch-root, but we will umount the image before switch-root
-    inst_multiple "echo" "sh" "mount" "modprobe" "mkdir" "systemctl"
+    # accessible before mounting the image.
+    inst_multiple "echo" "sh" "mount" "modprobe" "mkdir"
     hostonly="" instmods "loop" "squashfs" "overlay"
+
+    # Only keep systemctl outsite if we need switch root
+    if [[ ! -f "$initdir/lib/dracut/no-switch-root" ]]; then
+      inst "systemctl"
+    fi
 
     for folder in "${squash_candidate[@]}"; do
         # Remove duplicated files in squashfs image, save some more space
