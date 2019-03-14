@@ -1177,93 +1177,105 @@ if (( ${#add_device_l[@]} )); then
     push_host_devs "${add_device_l[@]}"
 fi
 
-if [[ $hostonly ]] && [[ "$hostonly_default_device" != "no" ]]; then
-    # in hostonly mode, determine all devices, which have to be accessed
-    # and examine them for filesystem types
+check_host_mountpoint() {
+    local mp=$1
+    mp=$(readlink -f "$mp")
+    mountpoint "$mp" >/dev/null 2>&1 || continue
+    _dev=$(find_block_device "$mp")
+    _bdev=$(readlink -f "/dev/block/$_dev")
+    [[ -b $_bdev ]] && _dev=$_bdev
+    [[ "$mp" == "/" ]] && root_devs+=("$_dev")
+    push_host_devs "$_dev"
+    if [[ $(find_mp_fstype "$mp") == btrfs ]]; then
+        for i in $(btrfs_devs "$mp"); do
+            [[ "$mp" == "/" ]] && root_devs+=("$i")
+            push_host_devs "$i"
+        done
+    fi
+}
 
-    for mp in \
-        "/" \
-        "/etc" \
-        "/bin" \
-        "/sbin" \
-        "/lib" \
-        "/lib64" \
-        "/usr" \
-        "/usr/bin" \
-        "/usr/sbin" \
-        "/usr/lib" \
-        "/usr/lib64" \
-        "/boot" \
-        "/boot/efi" \
-        "/boot/zipl" \
-        ;
-    do
-        mp=$(readlink -f "$mp")
-        mountpoint "$mp" >/dev/null 2>&1 || continue
-        _dev=$(find_block_device "$mp")
-        _bdev=$(readlink -f "/dev/block/$_dev")
-        [[ -b $_bdev ]] && _dev=$_bdev
-        [[ "$mp" == "/" ]] && root_devs+=("$_dev")
-        push_host_devs "$_dev"
-        if [[ $(find_mp_fstype "$mp") == btrfs ]]; then
-            for i in $(btrfs_devs "$mp"); do
-                [[ "$mp" == "/" ]] && root_devs+=("$i")
-                push_host_devs "$i"
-            done
+
+if [[ $hostonly ]]; then
+    if [[ "$hostonly_default_device" != "no" ]]; then
+        # Check fips module early to determine if /boot is required
+        if check_module fips; then
+            check_host_mountpoint "/boot"
         fi
-    done
+    else
+        # in hostonly mode, determine all devices, which have to be accessed
+        # and examine them for filesystem types
+        for mp in \
+            "/" \
+            "/etc" \
+            "/bin" \
+            "/sbin" \
+            "/lib" \
+            "/lib64" \
+            "/usr" \
+            "/usr/bin" \
+            "/usr/sbin" \
+            "/usr/lib" \
+            "/usr/lib64" \
+            "/boot" \
+            "/boot/efi" \
+            "/boot/zipl" \
+            ;
+        do
+          check_host_mountpoint $mp
+        done
 
-    if [[ -f /proc/swaps ]] && [[ -f /etc/fstab ]]; then
-        while read dev type rest || [ -n "$dev" ]; do
-            [[ -b $dev ]] || continue
-            [[ "$type" == "partition" ]] || continue
+        if [[ -f /proc/swaps ]] && [[ -f /etc/fstab ]]; then
+            while read dev type rest || [ -n "$dev" ]; do
+                [[ -b $dev ]] || continue
+                [[ "$type" == "partition" ]] || continue
 
+                while read _d _m _t _o _r || [ -n "$_d" ]; do
+                    [[ "$_d" == \#* ]] && continue
+                    [[ $_d ]] || continue
+                    [[ $_t != "swap" ]] && continue
+                    [[ $_m != "swap" ]] && [[ $_m != "none" ]] && continue
+                    [[ "$_o" == *noauto* ]] && continue
+                    _d=$(expand_persistent_dev "$_d")
+                    [[ "$_d" -ef "$dev" ]] || continue
+
+                    if [[ -f /etc/crypttab ]]; then
+                        while read _mapper _a _p _o || [ -n "$_mapper" ]; do
+                            [[ $_mapper = \#* ]] && continue
+                            [[ "$_d" -ef /dev/mapper/"$_mapper" ]] || continue
+                            [[ "$_o" ]] || _o="$_p"
+                            # skip entries with password files
+                            [[ "$_p" == /* ]] && [[ -f $_p ]] && continue 2
+                            # skip mkswap swap
+                            [[ $_o == *swap* ]] && continue 2
+                        done < /etc/crypttab
+                    fi
+
+                    _dev="$(readlink -f "$dev")"
+                    push_host_devs "$_dev"
+                    swap_devs+=("$_dev")
+                    break
+                done < /etc/fstab
+            done < /proc/swaps
+        fi
+
+        # collect all "x-initrd.mount" entries from /etc/fstab
+        if [[ -f /etc/fstab ]]; then
             while read _d _m _t _o _r || [ -n "$_d" ]; do
                 [[ "$_d" == \#* ]] && continue
                 [[ $_d ]] || continue
-                [[ $_t != "swap" ]] && continue
-                [[ $_m != "swap" ]] && [[ $_m != "none" ]] && continue
-                [[ "$_o" == *noauto* ]] && continue
-                _d=$(expand_persistent_dev "$_d")
-                [[ "$_d" -ef "$dev" ]] || continue
+                [[ "$_o" != *x-initrd.mount* ]] && continue
+                _dev=$(expand_persistent_dev "$_d")
+                _dev="$(readlink -f "$_dev")"
+                [[ -b $_dev ]] || continue
 
-                if [[ -f /etc/crypttab ]]; then
-                    while read _mapper _a _p _o || [ -n "$_mapper" ]; do
-                        [[ $_mapper = \#* ]] && continue
-                        [[ "$_d" -ef /dev/mapper/"$_mapper" ]] || continue
-                        [[ "$_o" ]] || _o="$_p"
-                        # skip entries with password files
-                        [[ "$_p" == /* ]] && [[ -f $_p ]] && continue 2
-                        # skip mkswap swap
-                        [[ $_o == *swap* ]] && continue 2
-                    done < /etc/crypttab
-                fi
-
-                _dev="$(readlink -f "$dev")"
                 push_host_devs "$_dev"
-                swap_devs+=("$_dev")
-                break
+                if [[ "$_t" == btrfs ]]; then
+                    for i in $(btrfs_devs "$_m"); do
+                        push_host_devs "$i"
+                    done
+                fi
             done < /etc/fstab
-        done < /proc/swaps
-    fi
-
-    # collect all "x-initrd.mount" entries from /etc/fstab
-    if [[ -f /etc/fstab ]]; then
-        while read _d _m _t _o _r || [ -n "$_d" ]; do
-            [[ "$_d" == \#* ]] && continue
-            [[ $_d ]] || continue
-            [[ "$_o" != *x-initrd.mount* ]] && continue
-            _dev=$(expand_persistent_dev "$_d")
-            _dev="$(readlink -f "$_dev")"
-            [[ -b $_dev ]] || continue
-
-            push_host_devs "$_dev"
-            if [[ "$_t" == btrfs ]]; then
-                for i in $(btrfs_devs "$_m"); do
-                    push_host_devs "$i"
-                done
-            fi
-        done < /etc/fstab
+        fi
     fi
 fi
 
