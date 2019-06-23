@@ -122,7 +122,7 @@ install_iscsiroot() {
     ifname=$(ip -o route get to $iscsi_address | sed -n 's/.*dev \([^ ]*\).*/\1/p')
 
     #follow ifcfg settings for boot protocol
-    bootproto=$(sed -n "/BOOTPROTO/s/BOOTPROTO='\([[:alpha:]]*6\?\)4\?'/\1/p" /etc/sysconfig/network/ifcfg-$ifname)
+    bootproto=$(sed -n "s/BOOTPROTO='\?\([[:alpha:]]*6\?\)4\?/\1/p" /etc/sysconfig/network-scripts/ifcfg-$ifname)
     if [ $bootproto ]; then
         printf 'ip=%s:%s ' ${ifname} ${bootproto}
     else
