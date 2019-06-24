@@ -134,29 +134,6 @@ install_iscsiroot() {
     [ -n "$iscsi_username" ] && iscsi_authinfo="$iscsi_username:$iscsi_password"
     [ -n "$iscsi_username_in" ] && iscsi_authinfo_in=":$iscsi_username_in:$iscsi_password_in"
 
-    [ -z "$iscsi_address" ] && return
-    local_address=$(ip -o route get to $iscsi_address | sed -n 's/.*src \([0-9a-f.:]*\).*/\1/p')
-    ifname=$(ip -o route get to $iscsi_address | sed -n 's/.*dev \([^ ]*\).*/\1/p')
-
-    # follow ifcfg settings for boot protocol
-    for _path in \
-        "/etc/sysconfig/network-scripts/ifcfg-$ifname" \
-        "/etc/sysconfig/network/ifcfg-$ifname" \
-    ; do
-        [ -f "$_path" ] && bootproto=$(sed -n "s/BOOTPROTO='\?\([[:alpha:]]*6\?\)4\?/\1/p" "$_path")
-    done
-
-    if [ $bootproto ]; then
-        printf 'ip=%s:%s ' ${ifname} ${bootproto}
-    else
-        printf 'ip=%s:static ' ${ifname}
-    fi
-
-    if [ -e /sys/class/net/$ifname/address ] ; then
-        ifmac=$(cat /sys/class/net/$ifname/address)
-        printf 'ifname=%s:%s ' ${ifname} ${ifmac}
-    fi
-
     if [ -n "$iscsi_address" -a -n "$iscsi_targetname" ] ; then
         if [ -n "$iscsi_port" -a "$iscsi_port" -eq 3260 ] ; then
             iscsi_port=
@@ -176,6 +153,7 @@ install_iscsiroot() {
         echo "netroot=iscsi:${iscsi_authinfo}${iscsi_authinfo_in}@${iscsi_address}::${iscsi_port}:${iscsi_lun}:${iscsi_targetname}"
         echo "rd.neednet=1"
     fi
+
     return 0
 }
 

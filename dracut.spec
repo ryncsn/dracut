@@ -439,6 +439,7 @@ install -m 0755 51-dracut-rescue-postinst.sh $RPM_BUILD_ROOT%{_sysconfdir}/kerne
 %{dracutlibdir}/modules.d/95fcoe
 %{dracutlibdir}/modules.d/95fcoe-uefi
 %{dracutlibdir}/modules.d/95iscsi
+%{dracutlibdir}/modules.d/96iscsi-network
 %{dracutlibdir}/modules.d/95nbd
 %{dracutlibdir}/modules.d/95nfs
 %{dracutlibdir}/modules.d/95ssh-client
