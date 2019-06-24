@@ -72,19 +72,21 @@ install_ibft() {
 
 install_iscsiroot() {
     local devpath=$1
-    local scsi_path iscsi_lun session c d conn host flash
-    local iscsi_session iscsi_address iscsi_port iscsi_targetname iscsi_tpgt
+    local scsi_path session_path conn sess host flash d
+    local iscsi_host iscsi_conn iscsi_session
+    local iscsi_lun iscsi_address iscsi_port iscsi_targetname iscsi_tpgt
+    local iscsi_username_in iscsi_password_in iscsi_username iscsi_password
 
     scsi_path=${devpath%%/block*}
     [ "$scsi_path" = "$devpath" ] && return 1
     iscsi_lun=${scsi_path##*:}
     [ "$iscsi_lun" = "$scsi_path" ] && return 1
-    session=${devpath%%/target*}
-    [ "$session" = "$devpath" ] && return 1
-    iscsi_session=${session##*/}
-    [ "$iscsi_session" = "$session" ] && return 1
-    host=${session%%/session*}
-    [ "$host" = "$session" ] && return 1
+    session_path=${devpath%%/target*}
+    [ "$session_path" = "$devpath" ] && return 1
+    iscsi_session=${session_path##*/}
+    [ "$iscsi_session" = "$session_path" ] && return 1
+    host=${session_path%%/session*}
+    [ "$host" = "$session_path" ] && return 1
     iscsi_host=${host##*/}
 
     for flash in ${host}/flashnode_sess-* ; do
@@ -98,24 +100,37 @@ install_iscsiroot() {
         fi
     done
 
-    for d in ${session}/* ; do
+    for d in ${session_path}/* ; do
         case $d in
-	    *connection*)
-	        c=${d##*/}
-	        conn=${d}/iscsi_connection/${c}
-	        if [ -d ${conn} ] ; then
-		    iscsi_address=$(cat ${conn}/persistent_address)
-		    iscsi_port=$(cat ${conn}/persistent_port)
-	        fi
-	        ;;
-	    *session)
-	        if [ -d ${d}/${iscsi_session} ] ; then
-                    iscsi_initiator=$(cat ${d}/${iscsi_session}/initiatorname)
-		    iscsi_targetname=$(cat ${d}/${iscsi_session}/targetname)
-	        fi
-	        ;;
+            *connection*)
+                iscsi_conn=${d##*/}
+                conn=${d}/iscsi_connection/${iscsi_conn}
+                if [ -d ${conn} ] ; then
+                    iscsi_address=$(cat ${conn}/persistent_address)
+                    iscsi_port=$(cat ${conn}/persistent_port)
+                fi
+                ;;
+            *session)
+                sess=${d}/${iscsi_session}
+                if [ -d ${sess} ] ; then
+                    iscsi_initiator=$(cat ${sess}/initiatorname)
+                    iscsi_targetname=$(cat ${sess}/targetname)
+
+                    iscsi_username=$(cat ${sess}/username)
+                    [ iscsi_username = "(null)" ] && iscsi_username=""
+                    iscsi_password=$(cat ${sess}/password)
+                    [ iscsi_password = "(null)" ] && iscsi_password=""
+                    iscsi_username_in=$(cat ${sess}/username_in)
+                    [ iscsi_username_in = "(null)" ] && iscsi_username_in=""
+                    iscsi_password_in=$(cat ${sess}/password_in)
+                    [ iscsi_password_in = "(null)" ] && iscsi_password_in=""
+                fi
+                ;;
         esac
     done
+
+    [ -n "$iscsi_username" ] && iscsi_authinfo="$iscsi_username:$iscsi_password"
+    [ -n "$iscsi_username_in" ] && iscsi_authinfo_in=":$iscsi_username_in:$iscsi_password_in"
 
     [ -z "$iscsi_address" ] && return
     local_address=$(ip -o route get to $iscsi_address | sed -n 's/.*src \([0-9a-f.:]*\).*/\1/p')
@@ -150,7 +165,7 @@ install_iscsiroot() {
         # Must be two separate lines, so that "sort | uniq" commands later
         # can sort out rd.iscsi.initiator= duplicates
         echo "rd.iscsi.initiator=${iscsi_initiator}"
-        echo "netroot=iscsi:${iscsi_address}::${iscsi_port}:${iscsi_lun}:${iscsi_targetname}"
+        echo "netroot=iscsi:${iscsi_authinfo}${iscsi_authinfo_in}@${iscsi_address}::${iscsi_port}:${iscsi_lun}:${iscsi_targetname}"
         echo "rd.neednet=1"
     fi
     return 0
