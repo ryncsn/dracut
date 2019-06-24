@@ -158,8 +158,6 @@ install_iscsiroot() {
 
 
 install_softiscsi() {
-    [ -d /sys/firmware/ibft ] && return 0
-
     is_softiscsi() {
         local _dev=$1
         local iscsi_dev
