@@ -1010,13 +1010,26 @@ dracut_kernel_post() {
         [[ -e $srcmods/$_f ]] && inst_simple "$srcmods/$_f" "/lib/modules/$kernel/$_f"
     done
 
+    if [[ $do_strip = yes ]] && ! [[ $DRACUT_FIPS_MODE ]]; then
+        # strip kernel modules, but do not touch signed modules
+        find "$initdir" -type f -path '*/lib/modules/*.ko' -print0 \
+            | while read -r -d $'\0' f || [ -n "$f" ]; do
+            SIG=$(tail -c 28 "$f" | tr -d '\000')
+            [[ $SIG == '~Module signature appended~' ]] || { printf "%s\000" "$f"; }
+        done | xargs -r -0 $strip_cmd -g -p
+    fi
+
+    # TODO: Only compress kernel modules if asked to
+    find "$initdir" -type f -path '*/lib/modules/*.ko' | while read _f; do
+        xz $_f
+    done
+
     # generate module dependencies for the initrd
     if [[ -d $initdir/lib/modules/$kernel ]] && \
         ! depmod -a -b "$initdir" $kernel; then
         dfatal "\"depmod -a $kernel\" failed."
         exit 1
     fi
-
 }
 
 instmods() {
