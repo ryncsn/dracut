@@ -460,6 +460,7 @@ install -m 0755 51-dracut-rescue-postinst.sh $RPM_BUILD_ROOT%{_sysconfdir}/kerne
 
 %files squash
 %{dracutlibdir}/modules.d/99squash
+%{dracutlibdir}/squash-loader
 
 %files config-generic
 %{dracutlibdir}/dracut.conf.d/02-generic-image.conf

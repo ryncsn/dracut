@@ -5,12 +5,41 @@ check() {
 }
 
 depends() {
-    echo "bash systemd systemd-initrd"
+    # There should be no dependency for squash module to work
+    # But switch-root when using squash is only tested with systemd
+    echo "systemd systemd-initrd"
     return 0
 }
 
 installkernel() {
-    hostonly="" instmods -c squashfs loop overlay
+    _install_deps() {
+        local _kmodule=$1
+        local _depens=$(modinfo -F depends $_kmodule | tr "," " ")
+        local _modfile=$(modinfo -n $_kmodule)
+        local _instdest="/squash/preload-modules/$_kmodule.ko"
+
+        if [ -z "$kcompress" ] && [[ $_modfile != *.ko ]]; then
+            derror "Bug: Kernel modules are compressed, but dracut didn't find a decompressor"
+            return 1
+        fi
+
+        if [ -n "$_depens" ]; then
+            for _mod in $_depens; do
+                _install_deps $_mod
+            done
+        fi
+
+        cat $_modfile | $kcompress -d > $initdir/$_instdest
+
+        if [ $? -ne 0 ]; then
+            derror "Failed to decompress kernel module."
+            return 1
+        fi
+    }
+
+    for _mod in squashfs loop overlay; do
+        _install_deps $_mod
+    done
 }
 
 install() {
@@ -19,11 +48,6 @@ install() {
         return 1
     fi
 
-    inst_multiple kmod modprobe mount mkdir ln echo
-    inst $moddir/setup-squash.sh /squash/setup-squash.sh
+    inst $dracutbasedir/squash-loader /squash/squash-loader
     inst $moddir/clear-squash.sh /squash/clear-squash.sh
-    inst $moddir/init.sh /squash/init.sh
-
-    inst "$moddir/squash-mnt-clear.service" "$systemdsystemunitdir/squash-mnt-clear.service"
-    ln_r "$systemdsystemunitdir/squash-mnt-clear.service" "$systemdsystemunitdir/initrd.target.wants/squash-mnt-clear.service"
 }

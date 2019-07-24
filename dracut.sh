@@ -1757,89 +1757,33 @@ if dracut_module_included "squash"; then
         exit 1
     fi
 
+    dracut_need_switch_root=1
     readonly squash_dir="$initdir/squash/root"
     readonly squash_img=$initdir/squash/root.img
+    readonly squash_candidate=( "usr" "etc" "var" )
 
-    # Currently only move "usr" "etc" to squashdir
-    readonly squash_candidate=( "usr" "etc" )
+    # Need to keep systemctl outsite if we need to switch root
+    if [[ -f "$initdir/lib/dracut/no-switch-root" ]]; then
+      unset dracut_need_switch_root
+    fi
 
     mkdir -m 0755 -p $squash_dir
     for folder in "${squash_candidate[@]}"; do
         mv $initdir/$folder $squash_dir/$folder
+        # Keep the folder strucutre in the initramfs
+        mkdir -m 0755 -p $initdir/$folder
     done
 
-    # Move some files out side of the squash image, including:
-    # - Files required to boot and mount the squashfs image
-    # - Files need to be accessible without mounting the squash image
-    required_in_root() {
-        local file=$1
-        local _sqsh_file=$squash_dir/$file
-        local _init_file=$initdir/$file
-
-        if [[ -e $_init_file ]]; then
-            return
-        fi
-
-        if [[ ! -e $_sqsh_file ]] && [[ ! -L $_sqsh_file ]]; then
-            derror "$file is required to boot a squashed initramfs but it's not installed!"
-            return
-        fi
-
-        if [[ ! -d $(dirname $_init_file) ]]; then
-            required_in_root $(dirname $file)
-        fi
-
-        if [[ -L $_sqsh_file ]]; then
-          cp --preserve=all -P $_sqsh_file $_init_file
-          _sqsh_file=$(realpath $_sqsh_file 2>/dev/null)
-          if [[ -e $_sqsh_file ]] && [[ "$_sqsh_file" == "$squash_dir"* ]]; then
-            # Relative symlink
-            required_in_root ${_sqsh_file#$squash_dir/}
-            return
-          fi
-          if [[ -e $squash_dir$_sqsh_file ]]; then
-            # Absolute symlink
-            required_in_root ${_sqsh_file#/}
-            return
-          fi
-          required_in_root ${module_spec#$squash_dir/}
-        else
-          if [[ -d $_sqsh_file ]]; then
-            mkdir $_init_file
-          else
-            mv $_sqsh_file $_init_file
-          fi
-        fi
-    }
-
-    required_in_root etc/initrd-release
-
-    for module_spec in $squash_dir/usr/lib/modules/*/modules.*;
-    do
-        required_in_root ${module_spec#$squash_dir/}
-    done
-
-    for dracut_spec in $squash_dir/usr/lib/dracut/*;
-    do
-        required_in_root ${dracut_spec#$squash_dir/}
-    done
-
+    # Squash module will install the squash-loader in "/"
     mv $initdir/init $initdir/init.stock
-    ln -s squash/init.sh $initdir/init
+    ln -s /squash/squash-loader $initdir/init
 
-    # Reinstall required files for the squash image setup script.
-    # We have moved them inside the squashed image, but they need to be
-    # accessible before mounting the image.
-    inst_multiple "echo" "sh" "mount" "modprobe" "mkdir"
-    hostonly="" instmods "loop" "squashfs" "overlay"
-
-    # Only keep systemctl outsite if we need switch root
-    if [[ ! -f "$initdir/lib/dracut/no-switch-root" ]]; then
+    if [ $dracut_need_switch_root ]; then
       inst "systemctl"
     fi
 
+    # Remove duplicated files in squashfs image, save some more space
     for folder in "${squash_candidate[@]}"; do
-        # Remove duplicated files in squashfs image, save some more space
         [[ ! -d $initdir/$folder/ ]] && continue
         for file in $(find $initdir/$folder/ -not -type d);
         do

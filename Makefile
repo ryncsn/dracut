@@ -43,7 +43,7 @@ manpages = $(man1pages) $(man5pages) $(man7pages) $(man8pages)
 
 .PHONY: install clean archive rpm srpm testimage test all check AUTHORS doc dracut-version.sh
 
-all: dracut-version.sh dracut.pc dracut-install skipcpio/skipcpio
+all: dracut-version.sh dracut.pc dracut-install skipcpio/skipcpio squash-loader/squash-loader
 
 DRACUT_INSTALL_OBJECTS = \
         install/dracut-install.o \
@@ -75,6 +75,10 @@ SKIPCPIO_OBJECTS= \
 
 skipcpio/skipcpio.o: skipcpio/skipcpio.c
 skipcpio/skipcpio: skipcpio/skipcpio.o
+
+SQUASH_LOADER_CFLAGS = -Os -fno-builtin -nostdlib
+squash-loader/squash-loader: squash-loader/squash-loader.c squash-loader/loader-helper.h
+	$(CC) $(SQUASH_LOADER_CFLAGS) -o $@ $<
 
 indent:
 	indent -i8 -nut -br -linux -l120 install/dracut-install.c
@@ -167,6 +171,9 @@ endif
 	fi
 	if [ -f skipcpio/skipcpio ]; then \
 		install -m 0755 skipcpio/skipcpio $(DESTDIR)$(pkglibdir)/skipcpio; \
+	fi
+	if [ -f squash-loader/squash-loader ]; then \
+		install -m 0755 squash-loader/squash-loader $(DESTDIR)$(pkglibdir)/squash-loader; \
 	fi
 	mkdir -p $(DESTDIR)${prefix}/lib/kernel/install.d
 	install -m 0755 50-dracut.install $(DESTDIR)${prefix}/lib/kernel/install.d/50-dracut.install
