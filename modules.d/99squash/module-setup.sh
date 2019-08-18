@@ -18,21 +18,17 @@ installkernel() {
         local _modfile=$(modinfo -n $_kmodule)
         local _instdest="/squash/preload-modules/$_kmodule.ko"
 
-        if [ -z "$kcompress" ] && [[ $_modfile != *.ko ]]; then
-            derror "Bug: Kernel modules are compressed, but dracut didn't find a decompressor"
-            return 1
-        fi
-
         if [ -n "$_depens" ]; then
             for _mod in $_depens; do
                 _install_deps $_mod
             done
         fi
 
-        cat $_modfile | $kcompress -d > $initdir/$_instdest
+        # inst_simple_decompress will fail if it's not compressed
+        inst_simple_decompress $_modfile $_instdest || inst_simple $_modfile $_instdest
 
         if [ $? -ne 0 ]; then
-            derror "Failed to decompress kernel module."
+            derror "Failed to install and decompress kernel module."
             return 1
         fi
     }

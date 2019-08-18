@@ -550,22 +550,42 @@ get_decompress_cmd() {
     esac
 }
 
+# Similiar to inst_simple, but try to descompress it after installation
+inst_simple_decompress() {
+    local _src=$1 _dst=$2 _cmd _ext
+
+    _cmd=$(get_decompress_cmd $_src)
+
+    [ -z "$_cmd" ] && return 1
+
+    inst_simple $@
+
+    # Decompress with chosen tool.  We assume that tool changes name e.g.
+    # from 'name.gz' to 'name' if install destination is not provided
+    if [ -z "$_dst" ]; then
+        $_cmd $initdir$_src
+    else
+        _dst="$initdir/$_dst"
+        mkdir -p $(dirname "$_dst")
+        if (cat "$_dst" | $_cmd > "$_dst.tmp"); then
+            mv "$_dst.tmp" "$_dst"
+        else
+            rm "$_dst.tmp"
+            return 1
+        fi
+    fi
+}
+
 # install function decompressing the target and handling symlinks
 # $@ = list of compressed (gz or bz2) files or symlinks pointing to such files
 #
 # Function install targets in the same paths inside overlay but decompressed
 # and without extensions (.gz, .bz2).
 inst_decompress() {
-    local _src _cmd
+    local _src
 
-    for _src in $@
-    do
-        _cmd=$(get_decompress_cmd ${_src})
-        [[ -z "${_cmd}" ]] && return 1
-        inst_simple ${_src}
-        # Decompress with chosen tool.  We assume that tool changes name e.g.
-        # from 'name.gz' to 'name'.
-        ${_cmd} "${initdir}${_src}"
+    for _src in $@; do
+        inst_simple_decompress $_src
     done
 }
 
@@ -576,7 +596,7 @@ inst_opt_decompress() {
     local _src
 
     for _src in $@; do
-        inst_decompress "${_src}" || inst "${_src}"
+        inst_simple_decompress $_src || inst_simple $_src
     done
 }
 
