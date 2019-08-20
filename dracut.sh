@@ -1499,6 +1499,20 @@ done
 
 dinfo "*** Including modules done ***"
 
+# determine strip binary
+if [[ $do_strip = yes ]] ; then
+    # Prefer strip from elfutils for package size
+    declare strip_cmd=$(command -v eu-strip)
+    test -z "$strip_cmd" && strip_cmd="strip"
+
+    for p in $strip_cmd xargs find; do
+        if ! type -P $p >/dev/null; then
+            dinfo "Could not find '$p'. Not stripping the initramfs."
+            do_strip=no
+        fi
+    done
+fi
+
 ## final stuff that has to happen
 if [[ $no_kernel != yes ]]; then
     if [[ $hostonly ]]; then
@@ -1650,20 +1664,6 @@ if [[ $do_hardlink = yes ]] && command -v hardlink >/dev/null; then
     dinfo "*** Hardlinking files ***"
     hardlink "$initdir" 2>&1
     dinfo "*** Hardlinking files done ***"
-fi
-
-# strip binaries
-if [[ $do_strip = yes ]] ; then
-    # Prefer strip from elfutils for package size
-    declare strip_cmd=$(command -v eu-strip)
-    test -z "$strip_cmd" && strip_cmd="strip"
-
-    for p in $strip_cmd xargs find; do
-        if ! type -P $p >/dev/null; then
-            dinfo "Could not find '$p'. Not stripping the initramfs."
-            do_strip=no
-        fi
-    done
 fi
 
 # cleanup empty ldconfig_paths directories
