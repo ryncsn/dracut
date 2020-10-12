@@ -27,7 +27,7 @@ depends() {
 }
 
 installkernel() {
-    hostonly="" instmods squashfs loop overlay
+    hostonly="" instmods -c squashfs loop overlay
 }
 
 install() {
