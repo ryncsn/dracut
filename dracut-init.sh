@@ -1042,5 +1042,5 @@ get_dev_module() {
 # 0 if the kernel module is either built-in or available
 # 1 if the kernel module is not enabled
 is_kernel_module_avaiable() {
-    modprobe -S $kernel --dry-run $kmodule &>/dev/null || return 1
+    modprobe -S $kernel --dry-run $1 &>/dev/null || return 1
 }
