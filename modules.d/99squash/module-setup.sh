@@ -11,6 +11,13 @@ check() {
         return 1
     fi
 
+    for i in squashfs loop overlay; do
+        if ! is_kernel_module_avaiable $i; then
+            derror "dracut-squash module requires kernel module $i"
+            return 1
+        fi
+    done
+
     return 255
 }
 
