@@ -39,8 +39,6 @@ installkernel() {
             =drivers/usb/storage \
             virtio_blk virtio_scsi
 
-        hostonly=$(optional_hostonly) =drivers/usb/storage
-
         dracut_instmods -o -s "${_blockfuncs}" "=drivers"
     }
 
