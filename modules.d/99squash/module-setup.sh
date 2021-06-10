@@ -43,7 +43,7 @@ installpost() {
     if [[ $_busybox ]]; then
         inst "$_busybox" /usr/bin/busybox
         for _i in sh echo mount modprobe mkdir switch_root grep; do
-            ln_r /usr/bin/busybox /usr/bin/$_i
+            ln_r busybox /usr/bin/$_i
         done
     else
         DRACUT_RESOLVE_DEPS=1 inst_multiple sh mount modprobe mkdir switch_root grep
@@ -53,8 +53,8 @@ installpost() {
     dracut_kernel_post
 
     # Install squash image init script.
-    ln -sfn /usr/bin "$initdir/bin"
-    ln -sfn /usr/sbin "$initdir/sbin"
+    ln -sfn usr/bin "$initdir/bin"
+    ln -sfn usr/sbin "$initdir/sbin"
     inst_simple "$moddir"/init-squash.sh /init
 }
 
