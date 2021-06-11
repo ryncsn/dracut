@@ -2067,8 +2067,8 @@ for ((i = 0; i < ${#include_src[@]}; i++)); do
             # check for preexisting symlinks, so we can cope with the
             # symlinks to $prefix
             # Objectname is a file or a directory
-            for objectname in "$src"/*; do
-                [[ -e $objectname || -L $objectname ]] || continue
+            find "$src" -maxdepth 1 -mindepth 1 -print0 | \
+            while read -r -d $'\0' objectname; do
                 if [[ -d $objectname ]]; then
                     # objectname is a directory, let's compute the final directory name
                     object_destdir=${destdir}/${objectname#$src/}
@@ -2077,7 +2077,7 @@ for ((i = 0; i < ${#include_src[@]}; i++)); do
                         mkdir -m 0755 -p "$object_destdir"
                         chmod --reference="$objectname" "$object_destdir"
                     fi
-                    $DRACUT_CP -t "$object_destdir" "$dracutsysrootdir$objectname"/*
+                    $DRACUT_CP -t "$object_destdir" "$dracutsysrootdir$objectname"/.
                 else
                     $DRACUT_CP -t "$destdir" "$dracutsysrootdir$objectname"
                 fi
