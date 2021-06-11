@@ -2069,7 +2069,7 @@ for ((i = 0; i < ${#include_src[@]}; i++)); do
             # Objectname is a file or a directory
             find "$src" -maxdepth 1 -mindepth 1 -print0 | \
             while read -r -d $'\0' objectname; do
-                if [[ -d $objectname ]]; then
+                if [[ -d $objectname ]] && [[ ! -L $objectname ]]; then
                     # objectname is a directory, let's compute the final directory name
                     object_destdir=${destdir}/${objectname#$src/}
                     if ! [[ -e $object_destdir ]]; then
