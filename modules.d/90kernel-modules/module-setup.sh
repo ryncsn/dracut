@@ -33,8 +33,6 @@ installkernel() {
             =drivers/usb/storage \
             =ide nvme vmd \
             virtio_blk virtio_scsi
-
-        dracut_instmods -o -s "${_blockfuncs}" "=drivers"
     }
 
     if [[ -z $drivers ]]; then
@@ -108,6 +106,8 @@ installkernel() {
             else
                 install_block_modules
             fi
+
+            dracut_instmods -o -s "${_blockfuncs}" "=drivers"
         fi
 
         # if not on hostonly mode, install all known filesystems,
