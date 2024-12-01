@@ -1,7 +1,7 @@
 Harald Hoyer <harald@profian.com>
 Victor Lowther <victor.lowther@gmail.com>
-Jóhann B. Guðmundsson <johannbg@gmail.com>
 Antonio Alvarez Feijoo <antonio.feijoo@suse.com>
+Jóhann B. Guðmundsson <johannbg@gmail.com>
 Laszlo Gombos <laszlo.gombos@gmail.com>
 Amadeusz Żołnowski <aidecoe@aidecoe.name>
 Daniel Molkentin <daniel.molkentin@suse.com>
@@ -48,13 +48,13 @@ Nicolas Chauvet <kwizart@gmail.com>
 Zoltán Böszörményi <zboszor@pr.hu>
 Colin Walters <walters@verbum.org>
 John Reiser <jreiser@bitwagon.com>
+Kairui Song <kasong@tencent.com>
 Luca Berra <bluca@vodka.it>
 Shreenidhi Shedi <sshedi@vmware.com>
 Xunlei Pang <xlpang@redhat.com>
 Daniel Drake <drake@endlessm.com>
 David Teigland <teigland@redhat.com>
 Dusty Mabe <dusty@dustymabe.com>
-Kairui Song <kasong@tencent.com>
 Angelo "pallotron" Failla <pallotron@fb.com>
 Dan Horák <dhorak@redhat.com>
 Mike Gilbert <floppym@gentoo.org>
@@ -128,6 +128,7 @@ Thomas Backlund <tmb@mageia.org>
 Topi Miettinen <toiwoton@gmail.com>
 Vasiliy Tolstov <v.tolstov@selfip.ru>
 Wim Muskee <wimmuskee@gmail.com>
+dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
 keentux <valentin.lefebvre@suse.com>
 Alan Jenkins <alan-jenkins@tuffmail.co.uk>
 Alan Pevec <apevec@redhat.com>
@@ -226,7 +227,9 @@ Conrad Hoffmann <ch@bitfehler.net>
 Daan De Meyer <daan.j.demeyer@gmail.com>
 Dan Fuhry <dfuhry@datto.com>
 Daniel McIlvaney <damcilva@microsoft.com>
+Daniel P. Berrangé <berrange@redhat.com>
 Dave Jones <davej@redhat.com>
+David Cassany <dcassany@suse.com>
 David Hildenbrand <david@redhat.com>
 David Michael <david.michael@coreos.com>
 Denis Volkov <denis@simpletexting.net>
@@ -261,6 +264,7 @@ Hiroaki Mizuguchi <hiroaki-m@iij.ad.jp>
 Hongxu Jia <hongxu.jia@windriver.com>
 Hui Wang <john.wanghui@huawei.com>
 Ignaz Forster <iforster@suse.com>
+Ihno Krumreich <ihno@suse.com>
 Jacob Wen <jian.w.wen@oracle.com>
 James Laska <jlaska@redhat.com>
 James Morris <morisja@gmail.com>
@@ -365,6 +369,7 @@ foopub <45460217+foopub@users.noreply.github.com>
 gaoyi <ymuemc@163.com>
 gombi <gombi@>
 honza801 <honza801@gmail.com>
+innovara <fombuena@outlook.com>
 jbash aka John Bashinski <jbash@velvet.com>
 jloeser <jloeser@suse.de>
 joamonwx <unknown>
